@@ -1,0 +1,100 @@
+---
+title: "HWClass06"
+author: "Aaron (PID:A17544470)"
+format: pdf
+---
+
+# Can you improve this analysis code?
+
+```{r}
+
+library(bio3d)
+s1 <- read.pdb("4AKE") # kinase with drug
+s2 <- read.pdb("1AKE") # kinase no drug
+s3 <- read.pdb("1E4Y") # kinase with drug
+s1.chainA <- trim.pdb(s1, chain="A", elety="CA")
+s2.chainA <- trim.pdb(s2, chain="A", elety="CA")
+s3.chainA <- trim.pdb(s3, chain="A", elety="CA")
+s1.b <- s1.chainA$atom$b
+s2.b <- s2.chainA$atom$b
+s3.b <- s3.chainA$atom$b
+plotb3(s1.b, sse=s1.chainA, typ="l", ylab="Bfactor")
+plotb3(s2.b, sse=s2.chainA, typ="l", ylab="Bfactor")
+plotb3(s3.b, sse=s3.chainA, typ="l", ylab="Bfactor")
+
+hc <- hclust( dist( rbind(s1.b, s2.b, s3.b) ) )
+plot(hc)
+```
+
+Improving by taking repetitive steps and turning it into a function.
+
+```{r}
+library(bio3d)
+proteins1 <- c("4AKE","1AKE","1E4Y")
+
+processing <- function(x = "1AAA"){
+  
+s <- read.pdb(x)
+s.chainA <- trim.pdb(s, chain="A", elety="CA")
+s.b <- s.chainA$atom$b
+plotb3(s.b, sse=s.chainA, typ="l", ylab="Bfactor")
+  return(s.b)
+}
+
+s1 <- processing("4AKE")
+s2 <- processing("1AKE")
+s3 <- processing("1E4Y")
+
+hc <- hclust( dist( rbind(s1, s2, s3) ) )
+plot(hc)
+```
+
+**rbind()** combines the arguments by row
+
+**distance()** looks at how far apart the matrices are from each other
+
+**hclust()** performs hierarchical cluster analysis based on dissimilarities and results in a cluster dendrogram.
+
+> Q6. Write your own function starting from the code above that analyzes protein drug interactions by reading in any protein PDB data and outputs a plot for the specified protein.
+
+```{r}
+library(bio3d)
+#Create any set of proteins that you want to examine
+proteins2 <- list("4AKE","1AKE","1E4Y") 
+
+#Inputs are the proteins that you are examining
+plottingdendrogram <- function(protein3){
+  
+  #Goes through each protein
+  processing <- function(protein4){
+  
+    #Obtaining a PDB structure object
+    spdb <- read.pdb(protein4)
+    
+    #Producing a new smaller PDB up to your specifications
+    spdb.chainA <- trim.pdb(spdb, chain="A", elety="CA")
+    
+    #Picking your subset from smaller PDB
+    spdb.b <- spdb.chainA$atom$b
+    
+    #Plotting
+    plotb3(spdb.b, sse=spdb.chainA, typ="l", ylab="Bfactor") 
+    
+    #Returning subset
+    return(spdb.b) 
+
+  }
+#Applying the processing function over the set of proteins
+broteins <- sapply(protein3, processing) 
+
+#Creating a dendrogram based off the subset of the proteins you pick
+hc <- hclust( dist( rbind(broteins[,1], broteins[,2], broteins[,3]) ) )
+
+#Plotting dendrogram
+plot(hc)
+}
+#Function plots a dendrogram based on the list of proteins you give
+plottingdendrogram(proteins2)
+
+
+```

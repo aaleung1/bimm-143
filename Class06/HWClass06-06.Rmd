@@ -1,0 +1,53 @@
+---
+title: "HWClass06-Q6"
+author: 'Aaron (PID: A17544470)'
+date: "2025-01-24"
+output:
+  pdf_document: default
+  html_document: default
+---
+> Q6. Write your own function starting from the code above that analyzes protein drug interactions by reading in any protein PDB data and outputs a plot for the specified protein.
+
+```{r}
+##install.packages("bio3d") importing bio3d
+
+library(bio3d)
+#Create any set of proteins that you want to examine
+proteins2 <- list("4AKE","1AKE","1E4Y") 
+
+#Inputs are the proteins that you are examining
+plottingdendrogram <- function(protein3){
+  
+  #Goes through each protein
+  processing <- function(protein4){
+  
+    #Obtaining a PDB structure object
+    spdb <- read.pdb(protein4)
+    
+    #Producing a new smaller PDB up to your specifications
+    spdb.chainA <- trim.pdb(spdb, chain="A", elety="CA")
+    
+    #Picking your subset from smaller PDB
+    spdb.b <- spdb.chainA$atom$b
+    
+    #Plotting
+    plotb3(spdb.b, sse=spdb.chainA, typ="l", ylab="Bfactor") 
+    
+    #Returning subset
+    return(spdb.b) 
+
+  }
+#Applying the processing function over the set of proteins
+broteins <- sapply(protein3, processing) 
+
+#Creating a dendrogram based off the subset of the proteins you pick
+hc <- hclust( dist( rbind(broteins[,1], broteins[,2], broteins[,3]) ) )
+
+#Plotting dendrogram
+plot(hc)
+}
+#Function plots a dendrogram based on the list of proteins you give
+plottingdendrogram(proteins2)
+
+
+```
