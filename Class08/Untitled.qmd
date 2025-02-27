@@ -1,0 +1,436 @@
+---
+title: "Class08-mini-project"
+author: Aaron (PID: A17544470)
+format: pdf
+---
+
+Today we will complete analysis of some breast cancer biopsy data but first let's revisit the main PCA function in R `prcomp()` and see what `scale=TRUE/FALSE` does.
+
+
+```{r}
+head(mtcars)
+```
+
+Find the mean value per column of this dataset?
+
+```{r}
+apply(mtcars, 2, sd)
+```
+
+It is clear that "disp" and "hp" have the highest mean values and the highest standard deviation. They will likely dominate any analysis I do on this dataset. Let's see
+
+```{r}
+pc.noscale <- prcomp(mtcars, scale = F)
+pc.scale <- prcomp(mtcars, scale = T)
+```
+
+```{r}
+biplot(pc.noscale)
+```
+
+```{r}
+pc.noscale$rotation[,1]
+```
+
+Plot the loadings
+
+```{r}
+library(ggplot2)
+
+r1 <-as.data.frame(pc.noscale$rotation)
+r1$names <-rownames(pc.noscale$rotation)
+r1$names
+
+ggplot(r1) +
+  aes(PC1, names) +
+  geom_col()
+```
+
+```{r}
+library(ggplot2)
+
+r2 <-as.data.frame(pc.scale$rotation)
+r2$names <-rownames(pc.scale$rotation)
+r2$names
+
+ggplot(r2) +
+  aes(PC1, names) +
+  geom_col()
+```
+
+```{r}
+biplot(pc.scale)
+```
+
+> **Take-home**: Generally we alawys want to set `scale = TRUE` when we do this type of analysis to oavoid our anlyses being dominated by individual varioables with the largest variance just due to their unit of measurement.
+
+# FNA breast cancer data
+
+Load the data into R.
+
+```{r}
+# Save your input data file into your Project directory
+fna.data <- "WisconsinCancer.csv"
+
+# Complete the following code to input the data and store as wisc.df
+wisc.df <- read.csv(fna.data, row.names = 1)
+
+head(wisc.df)
+dim(wisc.df)
+```
+
+> Q1. How many observations are in this dataset?
+
+```{r}
+nrow(wisc.df)
+dim(wisc.df)
+```
+
+There are 569 observations in this dataset.
+> Q2. How many of the observations have a malignant diagnosis?
+
+```{r}
+
+table(wisc.df$diagnosis)
+```
+
+> Q3. How many variables/features in the data are suffixed with _mean?
+
+```{r}
+ncol(wisc.df)
+```
+
+```{r}
+colnames(wisc.df)
+```
+
+A useful function for this is `grep()`
+```{r}
+length(grep("_mean", colnames(wisc.df)))
+```
+
+Before we go any further we need to exclude the diagnosis column from any future analysis - this tells us whether a sample to cancer or non-cancer.
+
+```{r}
+diagnosis <- as.factor(wisc.df$diagnosis)
+head(diagnosis)
+```
+
+Removing diagnosis column
+```{r}
+wisc.data <- wisc.df[,-1]
+```
+
+Let's see if we can cluster the `wisc.data` to find some structure in the dataset.
+```{r}
+hc <- hclust(dist(wisc.data))
+plot(hc)
+```
+
+# Principal Component Analysis (PCA)
+Jump right into pca
+```{r}
+wisc.pr <- prcomp(wisc.data, scale = T)
+summary(wisc.pr)
+
+biplot(wisc.pr)
+```
+
+> Q4. From your results, what proportion of the original variance is captured by the first principal components (PC1)?
+
+44.27% of proportion of the originial variance is captured by the first principa components (PC1).
+
+> Q5. How many principal components (PCs) are required to describe at least 70% of the original variance in the data?
+
+The first three principal components are required to describe at least 70% of the original variance in the data.
+> Q6. How many principal components (PCs) are required to describe at least 90% of the original variance in the data?
+
+The first seven principal components are required to describe at least 90% of the original variance in the data.
+
+> Q7.What stands out to you about this plot? Is it easy or difficult to understand? Why?
+
+This biplot sucks! Everything is so jumbled up it is difficult to parse it. We need to build our own PCA store plot of PC1 vs PC2
+
+```{r}
+head(wisc.pr$x)
+```
+
+Plot of PC1 vs PC2 the first two columns
+```{r}
+plot(wisc.pr$x[,1],wisc.pr$x[,2], col = diagnosis)
+```
+
+Make a ggplot version of this score plot
+```{r}
+pc <- as.data.frame(wisc.pr$x)
+
+ggplot(pc) +
+  aes(PC1, PC2, col = diagnosis) +
+  geom_point()
+
+```
+
+> Q8. Generate a similar plot for principal components 1 and 3. What do you notice about these plots?
+
+Since PC2 explains more variance than PC3, the plot with PC2 has better separation between the benign and malignant.
+
+```{r}
+
+pc <- as.data.frame(wisc.pr$x)
+
+ggplot(pc) +
+  aes(PC1, PC3, col = diagnosis) +
+  geom_point()
+```
+
+##Variance Explained
+
+
+```{r}
+# Calculate variance of each component
+pr.var <- wisc.pr$sdev^2
+head(pr.var)
+
+# Variance explained by each principal component: pve
+pve <- pr.var / sum(pr.var)
+
+# Plot variance explained for each principal component
+plot(pve, xlab = "Principal Component", 
+     ylab = "Proportion of Variance Explained", 
+     ylim = c(0, 1), type = "o")
+
+# Alternative scree plot of the same data, note data driven y-axis
+barplot(pve, ylab = "Precent of Variance Explained",
+     names.arg=paste0("PC",1:length(pve)), las=2, axes = FALSE)
+axis(2, at=pve, labels=round(pve,2)*100 )
+
+## ggplot based graph
+#install.packages("factoextra")
+library(factoextra)
+fviz_eig(wisc.pr, addlabels = TRUE)
+
+```
+
+> Q9. For the first principal component, what is the component of the loading vector (i.e. wisc.pr$rotation[,1]) for the feature concave.points_mean?
+
+The component of the loading vector for the feature concave.points_mean is -0.2608638.
+```{r}
+wisc.pr$rotation["concave.points_mean",1]
+
+```
+
+
+> Q10. What is the minimum number of principal components required to explain 80% of the variance of the data?
+
+The minimum number of components is five principal componenets required to explain 80% of the variance of the data.
+```{r}
+summary(wisc.pr)
+```
+
+
+#Hiearchical Clustering
+
+```{r}
+# Scale the wisc.data data using the "scale()" function
+data.scaled <- scale(wisc.data)
+data.dist <- dist(data.scaled)
+wisc.hclust <- hclust(data.dist, method = "complete")
+
+
+```
+
+
+```{r}
+plot(wisc.hclust)
+abline(h = 19, col="red", lty=2)
+```
+
+> Q11. Using the plot() and abline() functions, what is the height at which the clustering model has 4 clusters?
+
+The height at which the cluster model has 4 clusters is height 19.
+
+```{r}
+wisc.hclust.clusters <- cutree(wisc.hclust, k = 4)
+
+table(wisc.hclust.clusters, diagnosis)
+```
+```{r}
+cluster <- cutree(wisc.hclust, k = 10)
+  
+  table(cluster, diagnosis)
+```
+
+
+> Q12. Can you find a better cluster vs diagnoses match by cutting into a different number of clusters between 2 and 10?
+
+The other numbers of clusters don't do that well.
+
+> Q13. Which method gives your favorite results for the same data.dist dataset? Explain your reasoning.
+
+The other methods of "single", "complete", and "average" are more difficult in identify a good cluster while "ward.D2" works with this data.dist dataset.
+
+## Clustering in PC Space
+```{r}
+hb <- hclust(dist(wisc.pr$x[,1:2]), method = "single")
+plot(hb)
+hd <- hclust(dist(wisc.pr$x[,1:2]), method = "complete")
+plot(hd)
+he <- hclust(dist(wisc.pr$x[,1:2]), method = "average")
+plot(he)
+hc <- hclust(dist(wisc.pr$x[,1:2]), method = "ward.D2")
+plot(hc)
+
+abline(h = 70, col = "red")
+```
+
+# K-means clustering
+
+```{r}
+wisc.km <- kmeans(scale(wisc.data), centers= 2, nstart= 20)
+
+table(wisc.km$cluster, diagnosis)
+```
+
+
+# Cluster membership vector
+
+```{r}
+grps <- cutree(hc, h = 70)
+table(grps)
+```
+
+```{r}
+table(diagnosis)
+```
+
+Cross-table to see how my clustering groups correspond to expert diagnosis vector of M and B values
+
+```{r}
+table(grps, diagnosis)
+```
+
+
+```{r}
+plot(wisc.pr$x[,1:2], col=grps)
+plot(wisc.pr$x[,1:2], col=diagnosis)
+```
+
+```{r}
+g <- as.factor(grps)
+levels(g)
+
+g <- relevel(g,2)
+levels(g)
+
+# Plot using our re-ordered factor 
+plot(wisc.pr$x[,1:2], col=g)
+```
+
+
+
+
+Positive => cancer M
+Negative => non-cancer B
+
+True = cluster/group 1
+False = group 2
+
+True Positive 188
+False Positive 28
+True Negative 329
+False Negative 24
+
+We can use our PCA results (wisc.pr) to make predictions on our new unseen data.
+
+>Q15. How well does the newly created model with four clusters separate out the two diagnoses?
+
+There is a good decent amount of True positives and True negatives but there is still a non-signifcant amount of false negatives and false positives.
+
+```{r}
+## Use the distance along the first 7 PCs for clustering i.e. wisc.pr$x[, 1:7]
+
+wisc.pr.hclust <- hclust( dist(wisc.pr$x[, 1:7]), method = "ward.D2" )
+wisc.pr.hclust.clusters <- cutree(wisc.pr.hclust, k=2)
+table(wisc.pr.hclust.clusters, diagnosis)
+
+```
+
+>Q16. How well do the k-means and hierarchical clustering models you created in previous sections (i.e. before PCA) do in terms of separating the diagnoses? Again, use the table() function to compare the output of each model (wisc.km$cluster and wisc.hclust.clusters) with the vector containing the actual diagnoses.
+
+The k-means and hierarchical clustering models do mostly the same in terms of  separating the diagnoses as their values for true positives and negatives, and false positives and negatives are pretty close.
+
+```{r}
+table(wisc.km$cluster, diagnosis)
+table(wisc.hclust.clusters, diagnosis)
+
+summary(diagnosis)
+summary(wisc.hclust.clusters)
+
+```
+
+
+
+```{r}
+#url <- "new_samples.csv"
+url <- "https://tinyurl.com/new-samples-CSV"
+new <- read.csv(url)
+npc <- predict(wisc.pr, newdata=new)
+
+```
+
+
+```{r}
+plot(wisc.pr$x[,1:2], col=grps)
+points(npc[,1], npc[,2], col="blue", pch=16, cex=3)
+text(npc[,1], npc[,2], c(1,2), col="white")
+```
+```{r}
+343/(343+37)
+343/(343+40)
+329/(329+24)
+175/(175+37)
+172/(172+40)
+188/(188+24)
+```
+
+
+> Q17. Which of your analysis procedures resulted in a clustering model with the best specificity? How about sensitivity?
+
+Principal clustering analysis has the best specificity at 88.68% and the best sensitivity at 93.20%.
+
+### Sensitivity (TP/(TP+FN))
+K-means - 343/(343+37) = 0.9026316
+H clustering - 343/(343+40) = 0.8955614
+PCA - 329/(329+24) = **0.9320113**
+
+### Specificity (TN/(TN+FN))
+K-means - 175/(175+37) = 0.8254717
+H clustering - 172/(172+40) = 0.8113208
+PCA - 188/(188+24) = **0.8867925**
+
+
+```{r}
+#url <- "new_samples.csv"
+url <- "https://tinyurl.com/new-samples-CSV"
+new <- read.csv(url)
+npc <- predict(wisc.pr, newdata=new)
+npc
+```
+
+```{r}
+plot(wisc.pr$x[,1:2], col=g)
+points(npc[,1], npc[,2], col="blue", pch=16, cex=3)
+text(npc[,1], npc[,2], c(1,2), col="white")
+```
+
+
+> Q18. Which of these new patients should we prioritize for follow up based on your results?
+
+We should follow up with group 2 as they are the ones that have the predicted malignant samples. 
+
+
+
+
+
+
+
